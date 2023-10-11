@@ -8,9 +8,28 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: "test123"
       MONGO_INITDB_DATABASE: "restaurant_details"
     ports:
-      - "27017:27017" 
+      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - app-network
+
+  report-app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: report
+    command: uvicorn app.main:app --host 0.0.0.0
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   mongodb_data:

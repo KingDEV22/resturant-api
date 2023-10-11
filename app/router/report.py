@@ -3,7 +3,6 @@ from app.db import Store_Status, Store_TimeZone, Store_Working_Hour
 from io import StringIO
 import pandas as pd
 import logging
-from app.constant import END_TIME, MISSING_TIMEZONE
 from dateutil import parser
 import datetime
 import random
@@ -24,6 +23,11 @@ report_ids = set()
 
 # to set the report generation status
 report_status = ""
+
+# setting defaults as per problem statement
+START_TIME = datetime.time(hour=0,minute=0,second=0)
+END_TIME = datetime.time(hour=23,minute=59,second=59)
+MISSING_TIMEZONE = 'America/Chicago'
 
 
 # global variables for calculation

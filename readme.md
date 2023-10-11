@@ -57,3 +57,20 @@ Status Code - 200 Success
 `/api/report/get_report endpoint/{report_id}` - gives the output as running if report generation is in progress else return the report in csv file.
 
 Status Code - 200 Success, 404 error
+
+
+### Set up the app
+
+- Make sure to have docker install in the system
+- Clone the repo and cd into it
+- Run docker-compose up to start the server
+- Run docker-compose down to stop the server
+
+or
+
+- Install python and mongodb in your system
+- Clone the repo and cd into it
+- run ``pip install -r requirements.txt`` in the terminal
+- run ``uvicorn app.main:app``
+
+The port is 8000 for the application.
