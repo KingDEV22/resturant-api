@@ -42,4 +42,3 @@ Store_Working_Hour = db['store_hours']
 Store_Working_Hour.create_index([('store_id', ASCENDING)])
 Store_TimeZone = db['store_timezone']
 Store_TimeZone.create_index([('store_id', ASCENDING)])
-Report_Data = db['report_data']

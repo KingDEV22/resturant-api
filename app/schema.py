@@ -33,4 +33,4 @@ class ReportData(BaseModel):
 
 class Report(BaseModel):
     status: str = 'Running'
-    data: List[ReportData] = None
+    data: list[str] = []
