@@ -241,7 +241,10 @@ def generate_for_multi_status(data, store_hours):
 # start point of the calulation of uptime/downtime of stores.
 def generate_report():
     global last_day_uptime, last_hour_uptime, last_week_uptime, downtime_last_day, downtime_last_hour, downtime_last_week, report_status
+    
+    # getting the unique store_id from the db 
     store_ids = Store_Status.distinct('store_id')
+    # iterating store_ids list to fetch data for a store_id at a time and calculating the uptime/downtime
     for store_id in store_ids:
         last_hour_uptime = -1
         last_day_uptime = -1
@@ -249,32 +252,46 @@ def generate_report():
         downtime_last_hour = -1
         downtime_last_day = -1
         downtime_last_week = 0
-        chunk = Store_Status.find({'store_id': store_id}, {
+
+        # fetching the respective store status from the db
+        store_statuses = Store_Status.find({'store_id': store_id}, {
                                   '_id': 0, 'status': 1, 'timestamp_utc': 1})
-        data = pd.DataFrame(chunk)
+        
+        # preparing a dataframe of the store status for easy data manipulation
+        data = pd.DataFrame(store_statuses)
+
+        # getting the store working hours dictionary
         store_hours = get_store_hours(store_id=store_id)
-        print(store_hours)
+
+        # getting the store status from the give data.
         statuses = data['status'].unique()
+
         if len(statuses) == 1:
             generate_for_single_status(statuses[0], store_hours)
         else:
+            # getting the store time zone
             store_zone = Store_TimeZone.find_one(
                 {'store_id': store_id}, {'_id': 0, 'timezone_str': 1})
 
+            # assigning the default time if not present in db
             if store_zone is None:
                 store_zone = MISSING_TIMEZONE
             else:
                 store_zone = store_zone['timezone_str']
 
+            # converting timestamp to local time zone
             data = data.apply(parse_datetime, args=(
                 store_zone,), axis=1)
 
+            # sorting the data in descending order meaning last date in the dataset would come first
             data.sort_values(by=['date', 'timestamp_utc'], ascending=False,
                              inplace=True, ignore_index=True)
+            # filtering data for considering only week data
             end_date = data['date'].max() - timedelta(7)
-            # print(end_date)
             data.groupby(by='date', sort=False).apply(
                 lambda x: generate_for_multi_status(x, store_hours) if x.iloc[0]['date'] >= end_date else None)
+        
+        # generating the report based on store_id
         report = {
             'store_id': store_id,
             'uptime_last_hour': last_hour_uptime,
@@ -291,7 +308,7 @@ def generate_report():
 
 
 def generate_random_number():
-    # Generate a random 10-digit number
+    # Generate a random 10-digit report_id
     return ''.join([str(random.randint(0, 9)) for i in range(10)])
 
 
@@ -305,41 +322,42 @@ async def compute_report(background_tasks: BackgroundTasks):
     return {'report_id': report_id}
 
 
-@router.get("/get_report endpoint/{item_id}")
-async def get_report(item_id: str):
+@router.get("/get_report endpoint/{report_id}")
+async def get_report(report_id: str):
     global reports
 
-    if item_id not in report_ids:
+    if report_id not in report_ids:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="The report id is not valid!!!"
         )
 
-    if report_status == "Completed":
-        field_names = ["store_id", "uptime_last_hour", "uptime_last_day", "uptime_last_week",
-                       "downtime_last_hour", "downtime_last_day", "downtime_last_week"]
-        csv_buffer = StringIO()
-        writer = csv.DictWriter(csv_buffer, fieldnames=field_names)
-
-        # Write the CSV header
-        writer.writeheader()
-
-        # Write each row from the data
-        for row in reports:
-            writer.writerow(row)
-
-        # Get the CSV content as a string
-        csv_content = csv_buffer.getvalue()
-
-        # Set response headers
-        response = Response(content=csv_content)
-        response.headers["Content-Disposition"] = "attachment; filename=report.csv"
-        response.headers["Content-Type"] = "text/csv"
-
-        # Add a completion message in the response
-        response.headers["X-Message"] = "Report generation completed"
-
-        return response
-    return {
+    if report_status == "Running":
+        return {
         "status": report_status
     }
+
+    field_names = ["store_id", "uptime_last_hour", "uptime_last_day", "uptime_last_week",
+                    "downtime_last_hour", "downtime_last_day", "downtime_last_week"]
+    csv_buffer = StringIO()
+    writer = csv.DictWriter(csv_buffer, fieldnames=field_names)
+
+    # Write the CSV header
+    writer.writeheader()
+
+    # Write each row from the data
+    for row in reports:
+        writer.writerow(row)
+
+    # Get the CSV content as a string
+    csv_content = csv_buffer.getvalue()
+
+    # Set response headers
+    response = Response(content=csv_content)
+    response.headers["Content-Disposition"] = "attachment; filename=report.csv"
+    response.headers["Content-Type"] = "text/csv"
+
+    # Adding the completion message in the response
+    response.headers["status"] = "Report generation completed"
+
+    return response
